@@ -13,7 +13,7 @@ from pypdf import PdfReader
 # Splits documents into chunks and returns the chunks
 def get_chunks(documents):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 350,
+        chunk_size = 1000,
         chunk_overlap = 50
     )
 
@@ -28,9 +28,6 @@ def get_embeddings(vectorstore, chunks):
         embedding_function=OpenAIEmbeddings(model="openai.text-embedding-3-large")
     )
     vectorstore.add_documents(chunks)
-
-    # ids = vectorstore.get()["ids"]
-    # print(f"Database Size: {len(ids)}")
 
     return vectorstore
 
@@ -63,11 +60,9 @@ def format_docs(docs):
     return "\n\n---\n\n".join(d.page_content for d in docs)
 
 # Finds top k relevant chunks and returns concatenated chunks
-def get_top_k_docs(db, question, k=2):
+def get_top_k_docs(db, question, k=5):
     docs = db.similarity_search(question, k=k)
     context = format_docs(docs)
-
-    # print(f"Context: {context}\n")
 
     return context
 
@@ -75,7 +70,7 @@ def get_top_k_docs(db, question, k=2):
 def get_system_prompt(context):
     return f"""You are a helpful assistant for question answering.
     Use ONLY the provided context to answer concisely (<=3 sentences).
-    If the answer isn't in the context, say you don't know.
+    If the answer isn't in the context, say "I'm not sure I can answer your question. Are there any other documents you can provide?".
 
     Context:\n{context}
     """
@@ -105,7 +100,7 @@ client = OpenAI(
 	base_url="https://api.ai.it.cornell.edu",
 )
 
-st.title("📝 File Q&A with OpenAI")
+st.title("📝 File Q&A")
 uploaded_files = st.file_uploader("Upload files", type=("txt", "pdf"), accept_multiple_files=True)
 
 # Get vector database from uploaded files
@@ -137,8 +132,6 @@ if question and uploaded_files:
         response_generator = get_model_rag_response(db, question)
         response = response_generator.content
         st.write(response)
-
-    # print(f"Answer: {response}\n\n")
 
     # Append the model's response to the chat history
     st.session_state.messages.append({"role": "assistant", "content": response})
