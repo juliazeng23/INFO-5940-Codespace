@@ -91,11 +91,14 @@ def internet_search(query: str) -> str:
     log_tool_event({"type": "call", "tool": "internet_search", "args": {"query": redact_for_logs(query)}})
 
     try:
+        print("Tool called")
         api_key = os.getenv("TAVILY_API_KEY")
         if not api_key:
             msg = "missing TAVILY_API_KEY in environment."
             log_tool_event({"type": "error", "tool": "internet_search", "error": msg})
             return f"Search error: {msg}"
+
+        print("API key obtained")
 
         client = TavilyClient(api_key=api_key)
         response = client.search(query, max_results=3)
@@ -125,18 +128,82 @@ def internet_search(query: str) -> str:
 
 # BEGIN SOLUTION
 REVIEWER_INSTRUCTIONS = """
+    You are an expert itinerary reviewer whose job is to check travel plans for feasability, practicality, and safety. Consider opening hours, ticketing prices and availability, transportation schedules, and travel times between locations.
+    
+    You have access to an internal search tool. Call it to fact-check time-sensitive details (e.g. hours, closures, public holidays, transit timetables, ticket prices). If the user does not specify a date range, do not include a date when calling the tool. Check that accomodation, transportation, and food costs are accurate. Check that consecutive activities are within reasonable distances of each other.
+    
+    Output format:
+    For each finding, describe the issue, suggest a fix, and produce a rewritten version of the affected itinerary section.
 
+    Always verify with the internet_search tool when giving new information.
+
+    Do not use Markdown.
 """
 
 PLANNER_INSTRUCTIONS = """
+    You are an expert travel itinerary planner. Based on the user's request, generate a day-by-day itinerary. 
+    
+    When generating the itinerary:
+    - Consider dates, location, budget, and interests when specified
+    - Ensure the plan is realistic and well-paced
+    - For each city, give 1-3 accomodation options and estimated costs
 
+    ###
+    Use this template for the itinerary along with the activity template provided below:
+    Day 1: [Title] \n
+    Morning:
+    - Activity
+        - [Activity Template]
+    - Breakfast:
+        - Location:
+        - Recommended Dishes: [Dish] (estimated cost)
+
+    Afternoon:
+    - Lunch
+        - Location:
+        - Recommended Dishes: [Dish] (estimated cost)
+    - Activity 1
+        - [Activity Template]
+    - Activity 2 (if time allows)
+        - [Activity Template]
+
+    Evening:
+    - Dinner
+        - Location:
+        - Recommended Dishes: [Dish] (estimated cost)
+    - Activity
+        - [Activity Template]
+
+    Total Estimated Cost for Day 1:
+
+    Day 2: [Title] \n
+    ...
+    ###
+
+    ###
+    Use this template for each activity:
+    - Activity
+        - Location: [Location of activity]
+        - Estimated Time: [Estimated Time]
+        - Estimated Cost: [Estimated Cost]
+        - Transportation Options:
+            - From: [Previous location] - To: [Location of activity]
+            - Modes: 
+                - [Mode 1] (estimated time, estimated cost)
+                - [Mode 2] (estimated time, estimated cost)
+                - ...
+        - Booking: [Booking Information, if applicable]
+        - Tips: [Other important information and tips for visiting this place]
+    ###
+
+    Do not use Markdown.
 """
 
 reviewer_agent = Agent(
     name="Reviewer Agent",
     model="openai.gpt-4o",
     instructions=REVIEWER_INSTRUCTIONS.strip(),
-    tools=[]
+    tools=[internet_search]
 )
 
 planner_agent = Agent(
