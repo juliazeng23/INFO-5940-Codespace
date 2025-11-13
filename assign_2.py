@@ -91,14 +91,11 @@ def internet_search(query: str) -> str:
     log_tool_event({"type": "call", "tool": "internet_search", "args": {"query": redact_for_logs(query)}})
 
     try:
-        print("Tool called")
         api_key = os.getenv("TAVILY_API_KEY")
         if not api_key:
             msg = "missing TAVILY_API_KEY in environment."
             log_tool_event({"type": "error", "tool": "internet_search", "error": msg})
             return f"Search error: {msg}"
-
-        print("API key obtained")
 
         client = TavilyClient(api_key=api_key)
         response = client.search(query, max_results=3)
@@ -178,6 +175,8 @@ PLANNER_INSTRUCTIONS = """
 
     Day 2: [Title] \n
     ...
+
+    [Summary of trip and total estimated cost]
     ###
 
     ###
